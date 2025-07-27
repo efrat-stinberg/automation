@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        maven 'Maven'  // שם ה-Maven tool שמוגדר ב-Jenkins
-    }
-    
     parameters {
         string(name: 'REPO_URL', defaultValue: 'https://github.com/efrat-stinberg/automation.git', description: 'Repository URL')
         string(name: 'NAME_BRANCH', defaultValue: 'main', description: 'Branch name to execute')
@@ -42,12 +38,57 @@ pipeline {
             }
         }
         
+        stage('Check Maven') {
+            steps {
+                script {
+                    echo "Checking for Maven installation..."
+                    
+                    if (isUnix()) {
+                        try {
+                            sh 'which mvn'
+                            sh 'mvn --version'
+                            echo "Maven found in system PATH"
+                        } catch (Exception e) {
+                            echo "Maven not found in PATH, trying alternative paths..."
+                            sh 'ls -la /usr/bin/mvn* || echo "No mvn in /usr/bin"'
+                            sh 'ls -la /usr/local/bin/mvn* || echo "No mvn in /usr/local/bin"'
+                        }
+                    } else {
+                        try {
+                            bat 'where mvn'
+                            bat 'mvn --version'
+                            echo "Maven found in system PATH"
+                        } catch (Exception e) {
+                            echo "Maven not found in PATH"
+                        }
+                    }
+                }
+            }
+        }
+        
         stage('Compilation') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     echo "Starting compilation stage"
                     
-                    sh 'mvn clean compile'
+                    script {
+                        if (isUnix()) {
+                            // נסה מספר דרכים למצוא Maven
+                            try {
+                                sh 'mvn clean compile'
+                            } catch (Exception e) {
+                                echo "Standard mvn failed, trying /usr/bin/mvn"
+                                try {
+                                    sh '/usr/bin/mvn clean compile'
+                                } catch (Exception e2) {
+                                    echo "Trying /usr/local/bin/mvn"
+                                    sh '/usr/local/bin/mvn clean compile'
+                                }
+                            }
+                        } else {
+                            bat 'mvn clean compile'
+                        }
+                    }
                     
                     echo "Compilation stage completed successfully"
                 }
@@ -59,7 +100,23 @@ pipeline {
                 timeout(time: 5, unit: 'MINUTES') {
                     echo "Starting test execution stage"
                     
-                    sh 'mvn test'
+                    script {
+                        if (isUnix()) {
+                            try {
+                                sh 'mvn test'
+                            } catch (Exception e) {
+                                echo "Standard mvn failed, trying /usr/bin/mvn"
+                                try {
+                                    sh '/usr/bin/mvn test'
+                                } catch (Exception e2) {
+                                    echo "Trying /usr/local/bin/mvn"
+                                    sh '/usr/local/bin/mvn test'
+                                }
+                            }
+                        } else {
+                            bat 'mvn test'
+                        }
+                    }
                     
                     echo "Test execution stage completed successfully"
                 }
