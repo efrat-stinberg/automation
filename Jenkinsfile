@@ -1,6 +1,10 @@
 pipeline {
     agent any
     
+    tools {
+        maven 'Maven'  // שם ה-Maven tool שמוגדר ב-Jenkins
+    }
+    
     parameters {
         string(name: 'REPO_URL', defaultValue: 'https://github.com/efrat-stinberg/automation.git', description: 'Repository URL')
         string(name: 'NAME_BRANCH', defaultValue: 'main', description: 'Branch name to execute')
@@ -43,13 +47,7 @@ pipeline {
                 timeout(time: 5, unit: 'MINUTES') {
                     echo "Starting compilation stage"
                     
-                    script {
-                        if (isUnix()) {
-                            sh 'mvn clean compile'
-                        } else {
-                            bat 'mvn clean compile'
-                        }
-                    }
+                    sh 'mvn clean compile'
                     
                     echo "Compilation stage completed successfully"
                 }
@@ -61,13 +59,7 @@ pipeline {
                 timeout(time: 5, unit: 'MINUTES') {
                     echo "Starting test execution stage"
                     
-                    script {
-                        if (isUnix()) {
-                            sh 'mvn test'
-                        } else {
-                            bat 'mvn test'
-                        }
-                    }
+                    sh 'mvn test'
                     
                     echo "Test execution stage completed successfully"
                 }
