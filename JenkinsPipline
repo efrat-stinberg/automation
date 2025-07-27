@@ -1,64 +1,102 @@
 pipeline {
-    agent { label 'verisoft-2' }
-    options {
-        skipStagesAfterUnstable()
-        disableConcurrentBuild()
-    }
-    environment {
-        PROJECT_NAME = 'myProjectName'
-    }
+    agent any
+    
     parameters {
-        choice(choices: ["cake", "bread", "milk"], name: "Food")
-        string(defaultValue: "Yshai", name: "lastName", description: "myName")
+        string(name: 'REPO_URL', defaultValue: 'https://github.com/YOUR_USERNAME/clalit-automation-pipeline.git', description: 'Repository URL')
+        string(name: 'NAME_BRANCH', defaultValue: 'main', description: 'Branch name to execute')
     }
+    
+    environment {
+        MAIN_BRANCH = 'main'  // הבראנץ' המרכזי שהוגדר ב-UI
+    }
+    
+    triggers {
+        // כל יום שני בשעה 05:30 עם בראנץ' main
+        cron('30 5 * * 1')
+        // כל יום בשעה 14:00 עם בראנץ' develop (אם קיים, אחרת main)
+        cron('0 14 * * *')
+    }
+    
     stages {
-        stage('print parameters') {
+        stage('Code Checkout') {
             steps {
-                echo "parameters ${params.Food}"
-                echo "parameters ${params}"
-                echo "environment variable ${env.PROJECT_NAME}"
-                echo "${env.BUILD_NAME}"
-            }
-        }
-        stage('abort if true') {
-            when {
-                expression {
-                    return params.isTrue
+                timeout(time: 5, unit: 'MINUTES') {
+                    script {
+                        echo "Starting code checkout stage"
+                        
+                        // בדיקה אם הבראנץ' שנבחר זהה לזה שהוגדר ב-Jenkins
+                        if (params.NAME_BRANCH == env.MAIN_BRANCH) {
+                            echo "Using SCM checkout for main branch"
+                            checkout scm
+                        } else {
+                            echo "Using manual git checkout for branch: ${params.NAME_BRANCH}"
+                            git(
+                                url: params.REPO_URL,
+                                branch: params.NAME_BRANCH,
+                                credentialsId: '' // הוסיפי credentials ID אם נדרש
+                            )
+                        }
+                        
+                        echo "Code checkout stage completed successfully"
+                    }
                 }
             }
+        }
+        
+        stage('Compilation') {
             steps {
-                script {
-                    currentBuild.result = 'UNSTABLE'
+                timeout(time: 5, unit: 'MINUTES') {
+                    echo "Starting compilation stage"
+                    
+                    script {
+                        if (isUnix()) {
+                            sh 'mvn clean compile'
+                        } else {
+                            bat 'mvn clean compile'
+                        }
+                    }
+                    
+                    echo "Compilation stage completed successfully"
                 }
             }
         }
-        stage('input') {
+        
+        stage('Run Tests') {
             steps {
-                input(message: "click if to continue run", ok: "ok")
-            }
-        }
-        stage('Build') {
-            steps {
-                script {
-                    echo 'Building ...'
-
+                timeout(time: 5, unit: 'MINUTES') {
+                    echo "Starting test execution stage"
+                    
+                    script {
+                        if (isUnix()) {
+                            sh 'mvn test'
+                        } else {
+                            bat 'mvn test'
+                        }
+                    }
+                    
+                    echo "Test execution stage completed successfully"
                 }
             }
-
         }
-
-        stage('Test') {
-
-            steps {
-                echo 'Testing ... '
-            }
+    }
+    
+    post {
+        success {
+            echo "🎉 Pipeline completed successfully! All tests passed."
+            echo "Branch executed: ${params.NAME_BRANCH}"
+            echo "Repository: ${params.REPO_URL}"
         }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying ... '
-
-            }
+        
+        failure {
+            echo "❌ Pipeline failed. Please check the logs for details."
+            echo "Failed branch: ${params.NAME_BRANCH}"
+            echo "Repository: ${params.REPO_URL}"
         }
-
+        
+        always {
+            echo "Pipeline execution finished at: ${new Date()}"
+            // ניקוי workspace אם נדרש
+            cleanWs()
+        }
     }
 }
