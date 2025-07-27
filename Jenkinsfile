@@ -103,9 +103,7 @@ pipeline {
         always {
             echo "Pipeline execution finished at: ${new Date()}"
             
-            // שמירת תוצאות הטסטים אם קיימות
-            publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml', allowEmptyResults: true
-            
+            // ניקוי workspace
             cleanWs()
         }
     }
