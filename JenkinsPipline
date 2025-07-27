@@ -2,19 +2,16 @@ pipeline {
     agent any
     
     parameters {
-        string(name: 'REPO_URL', defaultValue: 'https://github.com/YOUR_USERNAME/clalit-automation-pipeline.git', description: 'Repository URL')
+        string(name: 'REPO_URL', defaultValue: 'https://github.com/efrat-stinberg/automation/.git', description: 'Repository URL')
         string(name: 'NAME_BRANCH', defaultValue: 'main', description: 'Branch name to execute')
     }
     
     environment {
-        MAIN_BRANCH = 'main'  // הבראנץ' המרכזי שהוגדר ב-UI
+        MAIN_BRANCH = 'master'  
     }
     
     triggers {
-        // כל יום שני בשעה 05:30 עם בראנץ' main
-        cron('30 5 * * 1')
-        // כל יום בשעה 14:00 עם בראנץ' develop (אם קיים, אחרת main)
-        cron('0 14 * * *')
+        cron('30 5 * * 1\n0 14 * * *')
     }
     
     stages {
@@ -24,7 +21,6 @@ pipeline {
                     script {
                         echo "Starting code checkout stage"
                         
-                        // בדיקה אם הבראנץ' שנבחר זהה לזה שהוגדר ב-Jenkins
                         if (params.NAME_BRANCH == env.MAIN_BRANCH) {
                             echo "Using SCM checkout for main branch"
                             checkout scm
@@ -33,7 +29,7 @@ pipeline {
                             git(
                                 url: params.REPO_URL,
                                 branch: params.NAME_BRANCH,
-                                credentialsId: '' // הוסיפי credentials ID אם נדרש
+                                credentialsId: '' 
                             )
                         }
                         
