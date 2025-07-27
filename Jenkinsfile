@@ -38,30 +38,18 @@ pipeline {
             }
         }
         
-        stage('Check Maven') {
+        stage('Check Java and Maven Wrapper') {
             steps {
                 script {
-                    echo "Checking for Maven installation..."
+                    echo "Checking Java installation..."
+                    sh 'java -version'
                     
-                    if (isUnix()) {
-                        try {
-                            sh 'which mvn'
-                            sh 'mvn --version'
-                            echo "Maven found in system PATH"
-                        } catch (Exception e) {
-                            echo "Maven not found in PATH, trying alternative paths..."
-                            sh 'ls -la /usr/bin/mvn* || echo "No mvn in /usr/bin"'
-                            sh 'ls -la /usr/local/bin/mvn* || echo "No mvn in /usr/local/bin"'
-                        }
-                    } else {
-                        try {
-                            bat 'where mvn'
-                            bat 'mvn --version'
-                            echo "Maven found in system PATH"
-                        } catch (Exception e) {
-                            echo "Maven not found in PATH"
-                        }
-                    }
+                    echo "Checking for Maven Wrapper..."
+                    sh 'ls -la mvnw* || echo "Maven wrapper not found"'
+                    sh 'ls -la .mvn/ || echo ".mvn directory not found"'
+                    
+                    // Give execute permission to mvnw
+                    sh 'chmod +x mvnw || echo "chmod failed"'
                 }
             }
         }
@@ -72,21 +60,11 @@ pipeline {
                     echo "Starting compilation stage"
                     
                     script {
-                        if (isUnix()) {
-                            // נסה מספר דרכים למצוא Maven
-                            try {
-                                sh 'mvn clean compile'
-                            } catch (Exception e) {
-                                echo "Standard mvn failed, trying /usr/bin/mvn"
-                                try {
-                                    sh '/usr/bin/mvn clean compile'
-                                } catch (Exception e2) {
-                                    echo "Trying /usr/local/bin/mvn"
-                                    sh '/usr/local/bin/mvn clean compile'
-                                }
-                            }
-                        } else {
-                            bat 'mvn clean compile'
+                        try {
+                            sh './mvnw clean compile'
+                        } catch (Exception e) {
+                            echo "Maven wrapper failed, trying with explicit java call"
+                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar clean compile'
                         }
                     }
                     
@@ -101,20 +79,11 @@ pipeline {
                     echo "Starting test execution stage"
                     
                     script {
-                        if (isUnix()) {
-                            try {
-                                sh 'mvn test'
-                            } catch (Exception e) {
-                                echo "Standard mvn failed, trying /usr/bin/mvn"
-                                try {
-                                    sh '/usr/bin/mvn test'
-                                } catch (Exception e2) {
-                                    echo "Trying /usr/local/bin/mvn"
-                                    sh '/usr/local/bin/mvn test'
-                                }
-                            }
-                        } else {
-                            bat 'mvn test'
+                        try {
+                            sh './mvnw test'
+                        } catch (Exception e) {
+                            echo "Maven wrapper failed, trying with explicit java call"
+                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar test'
                         }
                     }
                     
