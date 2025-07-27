@@ -10,9 +10,9 @@ pipeline {
         MAIN_BRANCH = 'main'
     }
     
- triggers {
-    cron('30 5 * * 1\n0 14 * * *')  // יום שני בשעה 05:30 וכל יום בשעה 14:00
-}
+    triggers {
+        cron('30 5 * * 1')  // יום שני בשעה 05:30
+    }
     
     stages {
         stage('Code Checkout') {
@@ -38,49 +38,56 @@ pipeline {
             }
         }
         
-        stage('Code Validation') {
+        stage('Check Java and Maven Wrapper') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    echo "Starting code validation stage"
+                script {
+                    echo "Checking Java installation..."
+                    sh 'java -version'
                     
-                    script {
-                        // בדיקה שהקבצים קיימים
-                        sh 'ls -la'
-                        sh 'find . -name "*.java" | head -10'
-                        sh 'find . -name "pom.xml" || echo "No pom.xml found"'
-                        
-                        // בדיקה שיש Java
-                        sh 'java -version'
-                        
-                        echo "Found Java files:"
-                        sh 'find . -name "*.java" -exec basename {} \\;'
-                    }
+                    echo "Checking for Maven Wrapper..."
+                    sh 'ls -la mvnw* || echo "Maven wrapper not found"'
+                    sh 'ls -la .mvn/ || echo ".mvn directory not found"'
                     
-                    echo "Code validation stage completed successfully"
+                    // Give execute permission to mvnw
+                    sh 'chmod +x mvnw || echo "chmod failed"'
                 }
             }
         }
         
-        stage('Project Structure Check') {
+        stage('Compilation') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    echo "Starting project structure check"
+                    echo "Starting compilation stage"
                     
                     script {
-                        sh 'echo "=== Project Structure ==="'
-                        sh 'tree . || find . -type d | head -20'
-                        
-                        sh 'echo "=== Source Files ==="'
-                        sh 'find src/ -name "*.java" || echo "No src directory found"'
-                        
-                        sh 'echo "=== Test Files ==="'
-                        sh 'find . -name "*Test*.java" || echo "No test files found"'
-                        
-                        sh 'echo "=== Configuration Files ==="'
-                        sh 'ls -la *.xml *.properties *.yml *.yaml 2>/dev/null || echo "No config files found"'
+                        try {
+                            sh './mvnw clean compile'
+                        } catch (Exception e) {
+                            echo "Maven wrapper failed, trying with explicit java call"
+                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar clean compile'
+                        }
                     }
                     
-                    echo "Project structure check completed successfully"
+                    echo "Compilation stage completed successfully"
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    echo "Starting test execution stage"
+                    
+                    script {
+                        try {
+                            sh './mvnw test'
+                        } catch (Exception e) {
+                            echo "Maven wrapper failed, trying with explicit java call"
+                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar test'
+                        }
+                    }
+                    
+                    echo "Test execution stage completed successfully"
                 }
             }
         }
@@ -88,10 +95,9 @@ pipeline {
     
     post {
         success {
-            echo "🎉 Pipeline completed successfully! Code validation passed."
+            echo "🎉 Pipeline completed successfully! All tests passed."
             echo "Branch executed: ${params.NAME_BRANCH}"
             echo "Repository: ${params.REPO_URL}"
-            echo "Note: This pipeline validates code structure. To run actual compilation and tests, Maven wrapper is needed."
         }
         
         failure {
