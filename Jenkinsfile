@@ -10,10 +10,9 @@ pipeline {
         MAIN_BRANCH = 'main'
     }
     
-    triggers {
-        cron('30 5 * * 1')  // יום שני בשעה 05:30
-        cron('0 14 * * *')  // כל יום בשעה 14:00
-    }
+ triggers {
+    cron('30 5 * * 1\n0 14 * * *')  // יום שני בשעה 05:30 וכל יום בשעה 14:00
+}
     
     stages {
         stage('Code Checkout') {
