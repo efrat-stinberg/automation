@@ -11,7 +11,7 @@ pipeline {
     }
     
     triggers {
-        cron('30 5 * * 1')  // יום שני בשעה 05:30
+        cron('30 5 * * 1\n0 14 * * *')  // יום שני בשעה 05:30 וכל יום בשעה 14:00
     }
     
     stages {
@@ -38,18 +38,22 @@ pipeline {
             }
         }
         
-        stage('Check Java and Maven Wrapper') {
+        stage('Verify Environment') {
             steps {
                 script {
-                    echo "Checking Java installation..."
+                    echo "Starting environment verification"
+                    
+                    // בדיקת Java
                     sh 'java -version'
                     
-                    echo "Checking for Maven Wrapper..."
-                    sh 'ls -la mvnw* || echo "Maven wrapper not found"'
-                    sh 'ls -la .mvn/ || echo ".mvn directory not found"'
+                    // בדיקת Maven Wrapper
+                    sh 'ls -la mvnw* || echo "Maven wrapper script not found"'
+                    sh 'ls -la .mvn/wrapper/ || echo "Maven wrapper directory not found"'
                     
-                    // Give execute permission to mvnw
-                    sh 'chmod +x mvnw || echo "chmod failed"'
+                    // הרשאות לקובץ mvnw
+                    sh 'chmod +x mvnw'
+                    
+                    echo "Environment verification completed successfully"
                 }
             }
         }
@@ -60,12 +64,7 @@ pipeline {
                     echo "Starting compilation stage"
                     
                     script {
-                        try {
-                            sh './mvnw clean compile'
-                        } catch (Exception e) {
-                            echo "Maven wrapper failed, trying with explicit java call"
-                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar clean compile'
-                        }
+                        sh './mvnw clean compile -B'
                     }
                     
                     echo "Compilation stage completed successfully"
@@ -79,12 +78,7 @@ pipeline {
                     echo "Starting test execution stage"
                     
                     script {
-                        try {
-                            sh './mvnw test'
-                        } catch (Exception e) {
-                            echo "Maven wrapper failed, trying with explicit java call"
-                            sh 'java -jar .mvn/wrapper/maven-wrapper.jar test'
-                        }
+                        sh './mvnw test -B'
                     }
                     
                     echo "Test execution stage completed successfully"
@@ -108,6 +102,10 @@ pipeline {
         
         always {
             echo "Pipeline execution finished at: ${new Date()}"
+            
+            // שמירת תוצאות הטסטים אם קיימות
+            publishTestResults testResultsPattern: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+            
             cleanWs()
         }
     }
