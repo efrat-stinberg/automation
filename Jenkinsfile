@@ -3,11 +3,11 @@ pipeline {
     
     parameters {
         string(name: 'REPO_URL', defaultValue: 'https://github.com/efrat-stinberg/automation.git', description: 'Repository URL')
-        string(name: 'NAME_BRANCH', defaultValue: 'main', description: 'Branch name to execute')
+        string(name: 'NAME_BRANCH', defaultValue: 'master', description: 'Branch name to execute')
     }
     
     environment {
-        MAIN_BRANCH = 'main'
+        MAIN_BRANCH = 'master'
     }
     
     triggers {
